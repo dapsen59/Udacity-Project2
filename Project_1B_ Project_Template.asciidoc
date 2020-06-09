@@ -1,0 +1,386 @@
+
+[[part-i.-etl-pipeline-for-pre-processing-the-files]]
+= Part I. ETL Pipeline for Pre-Processing the Files
+
+[[please-run-the-following-code-for-pre-processing-the-files]]
+== PLEASE RUN THE FOLLOWING CODE FOR PRE-PROCESSING THE FILES
+
+[[import-python-packages]]
+==== Import Python packages
+
+
++*In[5]:*+
+[source, ipython3]
+----
+# Import Python packages 
+import pandas as pd
+import cassandra
+import re
+import os
+import glob
+import numpy as np
+import json
+import csv
+----
+
+[[creating-list-of-filepaths-to-process-original-event-csv-data-files]]
+==== Creating list of filepaths to process original event csv data files
+
+
++*In[6]:*+
+[source, ipython3]
+----
+# checking your current working directory
+print(os.getcwd())
+
+# Get your current folder and subfolder event data
+filepath = os.getcwd() + '/event_data'
+
+# Create a for loop to create a list of files and collect each filepath
+for root, dirs, files in os.walk(filepath):
+    
+# join the file path and roots with the subdirectories using glob
+    file_path_list = glob.glob(os.path.join(root,'*'))
+    #print(file_path_list)
+----
+
+
++*Out[6]:*+
+----
+/home/workspace
+----
+
+[[processing-the-files-to-create-the-data-file-csv-that-will-be-used-for-apache-casssandra-tables]]
+==== Processing the files to create the data file csv that will be used
+for Apache Casssandra tables
+
+
++*In[7]:*+
+[source, ipython3]
+----
+# initiating an empty list of rows that will be generated from each file
+full_data_rows_list = [] 
+    
+# for every filepath in the file path list 
+for f in file_path_list:
+
+# reading csv file 
+    with open(f, 'r', encoding = 'utf8', newline='') as csvfile: 
+        # creating a csv reader object 
+        csvreader = csv.reader(csvfile) 
+        next(csvreader)
+        
+ # extracting each data row one by one and append it        
+        for line in csvreader:
+            print(line)
+            full_data_rows_list.append(line) 
+            
+# uncomment the code below if you would like to get total number of rows 
+print(len(full_data_rows_list))
+# uncomment the code below if you would like to check to see what the list of event data rows will look like
+print(full_data_rows_list)
+
+# creating a smaller event data csv file called event_datafile_full csv that will be used to insert data into the \
+# Apache Cassandra tables
+csv.register_dialect('myDialect', quoting=csv.QUOTE_ALL, skipinitialspace=True)
+
+with open('event_datafile_new.csv', 'w', encoding = 'utf8', newline='') as f:
+    writer = csv.writer(f, dialect='myDialect')
+    writer.writerow(['artist','firstName','gender','itemInSession','lastName','length',\
+                'level','location','sessionId','song','userId'])
+    for row in full_data_rows_list:
+        if (row[0] == ''):
+            continue
+        writer.writerow((row[0], row[2], row[3], row[4], row[5], row[6], row[7], row[8], row[12], row[13], row[16]))
+
+----
+
+
++*Out[7]:*+
+----
+['', 'Logged In', 'Walter', 'M', '0', 'Frye', '', 'free', 'San Francisco-Oakland-Hayward, CA', 'GET', 'Home', '1.54092E+12', '38', '', '200', '1.54111E+12', '39']
+['', 'Logged In', 'Kaylee', 'F', '0', 'Summers', '', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'GET', 'Home', '1.54034E+12', '139', '', '200', '1.54111E+12', '8']
+["Des'ree", 'Logged In', 'Kaylee', 'F', '1', 'Summers', '246.30812', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'You Gotta Be', '200', '1.54111E+12', '8']
+['', 'Logged In', 'Kaylee', 'F', '2', 'Summers', '', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'GET', 'Upgrade', '1.54034E+12', '139', '', '200', '1.54111E+12', '8']
+['Mr Oizo', 'Logged In', 'Kaylee', 'F', '3', 'Summers', '144.03873', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Flat 55', '200', '1.54111E+12', '8']
+['Tamba Trio', 'Logged In', 'Kaylee', 'F', '4', 'Summers', '177.18812', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Quem Quiser Encontrar O Amor', '200', '1.54111E+12', '8']
+['The Mars Volta', 'Logged In', 'Kaylee', 'F', '5', 'Summers', '380.42077', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Eriatarka', '200', '1.54111E+12', '8']
+['Infected Mushroom', 'Logged In', 'Kaylee', 'F', '6', 'Summers', '440.2673', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Becoming Insane', '200', '1.54111E+12', '8']
+['Blue October / Imogen Heap', 'Logged In', 'Kaylee', 'F', '7', 'Summers', '241.3971', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Congratulations', '200', '1.54111E+12', '8']
+['Girl Talk', 'Logged In', 'Kaylee', 'F', '8', 'Summers', '160.15628', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Once again', '200', '1.54111E+12', '8']
+['Black Eyed Peas', 'Logged In', 'Sylvie', 'F', '0', 'Cruz', '214.93506', 'free', 'Washington-Arlington-Alexandria, DC-VA-MD-WV', 'PUT', 'NextSong', '1.54027E+12', '9', 'Pump It', '200', '1.54111E+12', '10']
+['', 'Logged In', 'Ryan', 'M', '0', 'Smith', '', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'GET', 'Home', '1.54102E+12', '169', '', '200', '1.54111E+12', '26']
+['Fall Out Boy', 'Logged In', 'Ryan', 'M', '1', 'Smith', '200.72444', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'PUT', 'NextSong', '1.54102E+12', '169', 'Nobody Puts Baby In The Corner', '200', '1.54111E+12', '26']
+['M.I.A.', 'Logged In', 'Ryan', 'M', '2', 'Smith', '233.7171', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'PUT', 'NextSong', '1.54102E+12', '169', 'Mango Pickle Down River (With The Wilcannia Mob)', '200', '1.54111E+12', '26']
+['Survivor', 'Logged In', 'Jayden', 'M', '0', 'Fox', '245.36771', 'free', 'New Orleans-Metairie, LA', 'PUT', 'NextSong', '1.54103E+12', '100', 'Eye Of The Tiger', '200', '1.54111E+12', '101']
+15
+[['', 'Logged In', 'Walter', 'M', '0', 'Frye', '', 'free', 'San Francisco-Oakland-Hayward, CA', 'GET', 'Home', '1.54092E+12', '38', '', '200', '1.54111E+12', '39'], ['', 'Logged In', 'Kaylee', 'F', '0', 'Summers', '', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'GET', 'Home', '1.54034E+12', '139', '', '200', '1.54111E+12', '8'], ["Des'ree", 'Logged In', 'Kaylee', 'F', '1', 'Summers', '246.30812', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'You Gotta Be', '200', '1.54111E+12', '8'], ['', 'Logged In', 'Kaylee', 'F', '2', 'Summers', '', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'GET', 'Upgrade', '1.54034E+12', '139', '', '200', '1.54111E+12', '8'], ['Mr Oizo', 'Logged In', 'Kaylee', 'F', '3', 'Summers', '144.03873', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Flat 55', '200', '1.54111E+12', '8'], ['Tamba Trio', 'Logged In', 'Kaylee', 'F', '4', 'Summers', '177.18812', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Quem Quiser Encontrar O Amor', '200', '1.54111E+12', '8'], ['The Mars Volta', 'Logged In', 'Kaylee', 'F', '5', 'Summers', '380.42077', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Eriatarka', '200', '1.54111E+12', '8'], ['Infected Mushroom', 'Logged In', 'Kaylee', 'F', '6', 'Summers', '440.2673', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Becoming Insane', '200', '1.54111E+12', '8'], ['Blue October / Imogen Heap', 'Logged In', 'Kaylee', 'F', '7', 'Summers', '241.3971', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Congratulations', '200', '1.54111E+12', '8'], ['Girl Talk', 'Logged In', 'Kaylee', 'F', '8', 'Summers', '160.15628', 'free', 'Phoenix-Mesa-Scottsdale, AZ', 'PUT', 'NextSong', '1.54034E+12', '139', 'Once again', '200', '1.54111E+12', '8'], ['Black Eyed Peas', 'Logged In', 'Sylvie', 'F', '0', 'Cruz', '214.93506', 'free', 'Washington-Arlington-Alexandria, DC-VA-MD-WV', 'PUT', 'NextSong', '1.54027E+12', '9', 'Pump It', '200', '1.54111E+12', '10'], ['', 'Logged In', 'Ryan', 'M', '0', 'Smith', '', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'GET', 'Home', '1.54102E+12', '169', '', '200', '1.54111E+12', '26'], ['Fall Out Boy', 'Logged In', 'Ryan', 'M', '1', 'Smith', '200.72444', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'PUT', 'NextSong', '1.54102E+12', '169', 'Nobody Puts Baby In The Corner', '200', '1.54111E+12', '26'], ['M.I.A.', 'Logged In', 'Ryan', 'M', '2', 'Smith', '233.7171', 'free', 'San Jose-Sunnyvale-Santa Clara, CA', 'PUT', 'NextSong', '1.54102E+12', '169', 'Mango Pickle Down River (With The Wilcannia Mob)', '200', '1.54111E+12', '26'], ['Survivor', 'Logged In', 'Jayden', 'M', '0', 'Fox', '245.36771', 'free', 'New Orleans-Metairie, LA', 'PUT', 'NextSong', '1.54103E+12', '100', 'Eye Of The Tiger', '200', '1.54111E+12', '101']]
+----
+
+
++*In[8]:*+
+[source, ipython3]
+----
+# check the number of rows in your csv file
+with open('event_datafile_new.csv', 'r', encoding = 'utf8') as f:
+    print(sum(1 for line in f))
+----
+
+
++*Out[8]:*+
+----
+12
+----
+
+[[part-ii.-complete-the-apache-cassandra-coding-portion-of-your-project.]]
+= Part II. Complete the Apache Cassandra coding portion of your project.
+
+[[now-you-are-ready-to-work-with-the-csv-file-titled-event_datafile_new.csv-located-within-the-workspace-directory.-the-event_datafile_new.csv-contains-the-following-columns]]
+== Now you are ready to work with the CSV file titled
+event_datafile_new.csv, located within the Workspace directory. The
+event_datafile_new.csv contains the following columns:
+
+* artist
+* firstName of user
+* gender of user
+* item number in session
+* last name of user
+* length of the song
+* level (paid or free song)
+* location of the user
+* sessionId
+* song title
+* userId
+
+The image below is a screenshot of what the denormalized data should
+appear like in the **event_datafile_new.csv** after the code above is
+run:
+
+[[begin-writing-your-apache-cassandra-code-in-the-cells-below]]
+== Begin writing your Apache Cassandra code in the cells below
+
+[[creating-a-cluster]]
+==== Creating a Cluster
+
+
++*In[9]:*+
+[source, ipython3]
+----
+# This should make a connection to a Cassandra instance your local machine 
+# (127.0.0.1)
+
+from cassandra.cluster import Cluster
+cluster = Cluster()
+
+# To establish connection and begin executing queries, need a session
+session = cluster.connect()
+----
+
+[[create-keyspace]]
+==== Create Keyspace
+
+
++*In[15]:*+
+[source, ipython3]
+----
+# TO-DO: Create a Keyspace 
+try:
+    session.execute("""
+    CREATE KEYSPACE IF NOT EXISTS udacity
+    WITH REPLICATION =
+    { 'class' :'SimpleStrategy', 'replication_factor' : 1}"""
+)
+
+except Exception as e:
+    print(e)
+----
+
+[[set-keyspace]]
+==== Set Keyspace
+
+
++*In[10]:*+
+[source, ipython3]
+----
+# TO-DO: Set KEYSPACE to the keyspace specified above
+try:
+    session.set_keyspace('udacity')
+except Exception as e:
+    print(e)
+
+----
+
+[[now-we-need-to-create-tables-to-run-the-following-queries.-remember-with-apache-cassandra-you-model-the-database-tables-on-the-queries-you-want-to-run.]]
+=== Now we need to create tables to run the following queries. Remember,
+with Apache Cassandra you model the database tables on the queries you
+want to run.
+
+[[create-queries-to-ask-the-following-three-questions-of-the-data]]
+== Create queries to ask the following three questions of the data
+
+[[give-me-the-artist-song-title-and-songs-length-in-the-music-app-history-that-was-heard-during-sessionid-338-and-iteminsession-4]]
+=== 1. Give me the artist, song title and song's length in the music app
+history that was heard during sessionId = 338, and itemInSession = 4
+
+[[give-me-only-the-following-name-of-artist-song-sorted-by-iteminsession-and-user-first-and-last-name-for-userid-10-sessionid-182]]
+=== 2. Give me only the following: name of artist, song (sorted by
+itemInSession) and user (first and last name) for userid = 10, sessionid
+= 182
+
+[[give-me-every-user-name-first-and-last-in-my-music-app-history-who-listened-to-the-song-all-hands-against-his-own]]
+=== 3. Give me every user name (first and last) in my music app history
+who listened to the song 'All Hands Against His Own'
+
+
++*In[26]:*+
+[source, ipython3]
+----
+## TO-DO: Query 1:  Give me the artist, song title and song's length in the music app history that was heard during \
+## sessionId = 338, and itemInSession = 4
+
+
+query= "CREATE TABLE IF NOT EXISTS song_play"
+query = query + "(artist text, song_title text, song_length int, sessionId int, itemInSession int, PRIMARY KEY (sessionId, itemInSession))"
+try:
+    session.execute(query)
+except Exception as e:
+    print(e)
+
+query = "CREATE TABLE IF NOT EXISTS song_played_2"
+query = query + "(artist text, song text, firstName text, lastName text, userid int, sessionid int, songs text, PRIMARY KEY (userid, sessionid))"
+try:
+    session.execute(query)
+except Exception as e:
+    print(e)
+
+    
+query = "CREATE TABLE IF NOT EXISTS music_app_history"
+query = query + "(firstName text, lastName text,  PRIMARY KEY (song))"
+try:
+    session.execute(query)
+except Exception as e:
+    print(e)    
+
+
+
+                    
+----
+
+
++*Out[26]:*+
+----
+Error from server: code=2200 [Invalid query] message="No keyspace has been specified. USE a keyspace, or explicitly specify keyspace.tablename"
+Error from server: code=2200 [Invalid query] message="No keyspace has been specified. USE a keyspace, or explicitly specify keyspace.tablename"
+Error from server: code=2200 [Invalid query] message="No keyspace has been specified. USE a keyspace, or explicitly specify keyspace.tablename"
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+# We have provided part of the code to set up the CSV file. Please complete the Apache Cassandra code below#
+file = 'event_datafile_new.csv'
+
+with open(file, encoding = 'utf8') as f:
+    csvreader = csv.reader(f)
+    next(csvreader) # skip header
+    for line in csvreader:
+## TO-DO: Assign the INSERT statements into the `query` variable
+        query = "<ENTER INSERT STATEMENT HERE>"
+        query = query + "<ASSIGN VALUES HERE>"
+        ## TO-DO: Assign which column element should be assigned for each column in the INSERT statement.
+        ## For e.g., to INSERT artist_name and user first_name, you would change the code below to `line[0], line[1]`
+        session.execute(query, (line[#], line[#]))
+----
+
+[[do-a-select-to-verify-that-the-data-have-been-inserted-into-each-table]]
+==== Do a SELECT to verify that the data have been inserted into each
+table
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+## TO-DO: Add in the SELECT statement to verify the data was entered into the table
+----
+
+[[copy-and-repeat-the-above-three-cells-for-each-of-the-three-questions]]
+=== COPY AND REPEAT THE ABOVE THREE CELLS FOR EACH OF THE THREE
+QUESTIONS
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+## TO-DO: Query 2: Give me only the following: name of artist, song (sorted by itemInSession) and user (first and last name)\
+## for userid = 10, sessionid = 182
+
+
+                    
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+## TO-DO: Query 3: Give me every user name (first and last) in my music app history who listened to the song 'All Hands Against His Own'
+
+
+                    
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+
+----
+
+[[drop-the-tables-before-closing-out-the-sessions]]
+=== Drop the tables before closing out the sessions
+
+
++*In[4]:*+
+[source, ipython3]
+----
+## TO-DO: Drop the table before closing out the sessions
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+
+----
+
+[[close-the-session-and-cluster-connection]]
+=== Close the session and cluster connection¶
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+session.shutdown()
+cluster.shutdown()
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+
+----
+
+
++*In[ ]:*+
+[source, ipython3]
+----
+
+----
